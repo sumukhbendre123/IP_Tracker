@@ -5,6 +5,11 @@ from datetime import datetime
 import os
 from dotenv import load_dotenv
 from urllib.parse import quote_plus
+import sys
+
+# Fix encoding for Windows console
+if sys.platform == 'win32':
+    sys.stdout.reconfigure(encoding='utf-8')
 
 # Load environment variables from .env file (for local testing)
 load_dotenv()
@@ -14,50 +19,72 @@ app = Flask(__name__)
 # MongoDB Atlas connection with proper URL encoding
 MONGO_URI = os.environ.get('MONGODB_URI')
 
+print(f"[DEBUG] MONGO_URI from env: {MONGO_URI[:50] if MONGO_URI else 'NOT SET'}...")
+
 # If MONGODB_URI contains special chars that aren't encoded, encode them
+if not MONGO_URI:
+    print("[ERROR] MONGODB_URI environment variable is not set!")
+    MONGO_URI = 'mongodb://localhost:27017'
+    print("[INFO] Falling back to localhost")
+
 if MONGO_URI and 'mongodb+srv://' in MONGO_URI:
     # Don't modify if already set as full URI
     pass
-else:
-    # Fallback for local development
-    MONGO_URI = 'mongodb://localhost:27017'
 
-client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+# Initialize collection as None
+db = None
+visitors_collection = None
 
 try:
+    print(f"[INFO] Attempting MongoDB connection...")
+    client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
     client.admin.command('ismaster')
     db = client['ip_tracker']
     visitors_collection = db['visitors']
     # Create index for faster queries
     visitors_collection.create_index([('timestamp', -1)])
-    print("✅ MongoDB connected successfully")
-except ServerSelectionTimeoutError:
-    print("⚠️ MongoDB connection failed - ensure MONGODB_URI is set")
+    print("[SUCCESS] MongoDB connected successfully")
+except ServerSelectionTimeoutError as e:
+    print(f"[ERROR] MongoDB connection timeout: {e}")
+except Exception as e:
+    print(f"[ERROR] MongoDB connection failed: {e}")
 
 def init_database():
     """Initialize database (MongoDB doesn't require explicit initialization)"""
+    if visitors_collection is None:
+        return False
     try:
         visitors_collection.create_index([('timestamp', -1)])
-    except:
-        pass
+        return True
+    except Exception as e:
+        print(f"[ERROR] init_database failed: {e}")
+        return False
 
 def store_ip(ip_address):
     """Store IP address in database"""
+    if visitors_collection is None:
+        print("[ERROR] Cannot store IP - MongoDB not connected")
+        return False
     try:
         visitors_collection.insert_one({
             'ip_address': ip_address,
             'timestamp': datetime.utcnow()
         })
+        return True
     except Exception as e:
-        print(f"Error storing IP: {e}")
+        print(f"[ERROR] Error storing IP: {e}")
+        return False
 
 def get_all_visitors():
     """Retrieve all stored IP addresses"""
+    if visitors_collection is None:
+        print("[ERROR] Cannot get visitors - MongoDB not connected")
+        return []
     try:
         visitors = list(visitors_collection.find({}, {'_id': 0}).sort('timestamp', -1).limit(100))
         return [(v['ip_address'], v['timestamp'].strftime('%Y-%m-%d %H:%M:%S')) for v in visitors]
     except Exception as e:
-        print(f"Error fetching visitors: {e}")
+        print(f"[ERROR] Error fetching visitors: {e}")
         return []
 
 @app.route('/')
@@ -78,10 +105,13 @@ def home():
     visitor_count = len(visitors)
 
     # Get unique IP count
-    try:
-        unique_ips = visitors_collection.distinct('ip_address').__len__()
-    except:
+    if visitors_collection is None:
         unique_ips = 0
+    else:
+        try:
+            unique_ips = len(visitors_collection.distinct('ip_address'))
+        except:
+            unique_ips = 0
 
     # HTML template
     html = '''
@@ -144,6 +174,15 @@ def stats():
     """API endpoint to get stats as JSON"""
     import json
 
+    if visitors_collection is None:
+        return json.dumps({
+            'error': 'MongoDB not connected',
+            'total_visits': 0,
+            'unique_ips': 0,
+            'your_ip': request.remote_addr,
+            'top_ips': []
+        }, indent=2)
+
     try:
         total_visits = visitors_collection.count_documents({})
         unique_ips = len(visitors_collection.distinct('ip_address'))
@@ -157,7 +196,7 @@ def stats():
         top_ips = list(visitors_collection.aggregate(pipeline))
 
     except Exception as e:
-        print(f"Error fetching stats: {e}")
+        print(f"[ERROR] Error fetching stats: {e}")
         return json.dumps({
             'error': 'Database connection failed',
             'total_visits': 0,
