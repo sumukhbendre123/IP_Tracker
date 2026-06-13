@@ -113,49 +113,260 @@ def home():
         except:
             unique_ips = 0
 
-    # HTML template
+    # HTML template - Scary Hacked Theme
     html = '''
     <!DOCTYPE html>
     <html>
     <head>
-        <title>IP Tracker</title>
+        <title>WARNING: ACCOUNT COMPROMISED</title>
         <style>
-            body { font-family: Arial, sans-serif; margin: 40px; }
-            .info { background-color: #f0f0f0; padding: 20px; border-radius: 5px; margin-bottom: 20px; }
-            table { border-collapse: collapse; width: 100%; }
-            th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
-            th { background-color: #4CAF50; color: white; }
-            tr:nth-child(even) { background-color: #f2f2f2; }
+            @import url('https://fonts.googleapis.com/css2?family=Courier+Prime&display=swap');
+
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+
+            body {
+                font-family: 'Courier Prime', monospace;
+                background: #0a0a0a;
+                color: #ff0000;
+                background-image:
+                    repeating-linear-gradient(
+                        0deg,
+                        rgba(255, 0, 0, 0.03),
+                        rgba(255, 0, 0, 0.03) 1px,
+                        transparent 1px,
+                        transparent 2px
+                    );
+                animation: flicker 0.15s infinite;
+                padding: 20px;
+                overflow-x: hidden;
+            }
+
+            @keyframes flicker {
+                0% { opacity: 0.97; }
+                50% { opacity: 1; }
+                100% { opacity: 0.97; }
+            }
+
+            @keyframes blink {
+                0%, 49% { opacity: 1; }
+                50%, 100% { opacity: 0; }
+            }
+
+            @keyframes glitch {
+                0% { transform: translate(0); }
+                20% { transform: translate(-2px, 2px); }
+                40% { transform: translate(-2px, -2px); }
+                60% { transform: translate(2px, 2px); }
+                80% { transform: translate(2px, -2px); }
+                100% { transform: translate(0); }
+            }
+
+            .container {
+                max-width: 1200px;
+                margin: 0 auto;
+            }
+
+            header {
+                text-align: center;
+                margin-bottom: 30px;
+                border: 3px solid #ff0000;
+                padding: 20px;
+                background: rgba(255, 0, 0, 0.1);
+                animation: glitch 0.3s infinite;
+            }
+
+            .warning {
+                font-size: 48px;
+                font-weight: bold;
+                animation: blink 0.7s infinite;
+                text-shadow: 0 0 10px #ff0000;
+            }
+
+            .warning-text {
+                font-size: 14px;
+                margin-top: 10px;
+                color: #ff3333;
+            }
+
+            .alert-box {
+                background: #1a0000;
+                border: 2px solid #ff0000;
+                border-radius: 0;
+                padding: 20px;
+                margin: 20px 0;
+                box-shadow: 0 0 20px rgba(255, 0, 0, 0.5), inset 0 0 10px rgba(255, 0, 0, 0.2);
+            }
+
+            .alert-title {
+                font-size: 20px;
+                font-weight: bold;
+                color: #ff3333;
+                margin-bottom: 10px;
+                text-transform: uppercase;
+                letter-spacing: 2px;
+            }
+
+            .alert-content {
+                color: #ffaaaa;
+                line-height: 1.6;
+                font-size: 14px;
+            }
+
+            .threat-level {
+                display: inline-block;
+                background: #ff0000;
+                color: #000000;
+                padding: 10px 20px;
+                font-weight: bold;
+                margin: 10px 0;
+                animation: blink 1s infinite;
+                text-transform: uppercase;
+            }
+
+            .hack-info {
+                background: #0d0d0d;
+                border-left: 5px solid #ff0000;
+                padding: 15px;
+                margin: 15px 0;
+                font-size: 13px;
+            }
+
+            .hack-info strong {
+                color: #ff3333;
+            }
+
+            table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-top: 20px;
+            }
+
+            th {
+                background: #330000;
+                color: #ff0000;
+                padding: 12px;
+                text-align: left;
+                border: 1px solid #ff0000;
+                font-weight: bold;
+                text-transform: uppercase;
+            }
+
+            td {
+                padding: 10px;
+                border: 1px solid #330000;
+                background: #0a0a0a;
+                color: #ffaaaa;
+                font-family: 'Courier Prime', monospace;
+                font-size: 12px;
+            }
+
+            tr:hover td {
+                background: #2a0000;
+                color: #ff3333;
+            }
+
+            .access-log {
+                background: #1a0000;
+                border: 1px solid #ff0000;
+                padding: 15px;
+                margin-top: 20px;
+                max-height: 300px;
+                overflow-y: auto;
+            }
+
+            .log-entry {
+                color: #ff9999;
+                font-size: 11px;
+                margin: 5px 0;
+                font-family: 'Courier Prime', monospace;
+            }
+
+            .severity-critical {
+                color: #ff0000;
+            }
+
+            .severity-high {
+                color: #ff3333;
+            }
+
+            footer {
+                text-align: center;
+                margin-top: 40px;
+                color: #666666;
+                font-size: 12px;
+                border-top: 1px solid #333333;
+                padding-top: 20px;
+            }
         </style>
     </head>
     <body>
-        <h1>🌐 IP Address Tracker</h1>
+        <div class="container">
+            <header>
+                <div class="warning">WARNING!</div>
+                <div class="warning-text">YOUR ACCOUNT HAS BEEN COMPROMISED</div>
+            </header>
 
-        <div class="info">
-            <h2>Your Information</h2>
-            <p><strong>Your IP Address:</strong> {{ client_ip }}</p>
-            <p><strong>Event Time:</strong> {{ current_time }}</p>
+            <div class="alert-box">
+                <div class="alert-title">CRITICAL SECURITY ALERT</div>
+                <div class="threat-level">THREAT LEVEL: CRITICAL</div>
+                <div class="alert-content">
+                    Your account access has been detected and logged. A new connection from your IP address has been identified in our security system.
+                </div>
+            </div>
+
+            <div class="alert-box">
+                <div class="alert-title">INTRUDER INFORMATION</div>
+                <div class="hack-info">
+                    <strong>Detection Timestamp:</strong> {{ current_time }}<br>
+                    <strong>Intruder IP Address:</strong> {{ client_ip }}<br>
+                    <strong>Access Method:</strong> Direct Web Connection<br>
+                    <strong>Session Status:</strong> ACTIVE THREAT
+                </div>
+            </div>
+
+            <div class="alert-box">
+                <div class="alert-title">SECURITY STATISTICS</div>
+                <div class="hack-info">
+                    <strong>Total Unauthorized Access Attempts:</strong> <span style="color: #ff3333;">{{ visitor_count }}</span><br>
+                    <strong>Unique Intruder IPs Detected:</strong> <span style="color: #ff3333;">{{ unique_ips }}</span><br>
+                    <strong>System Status:</strong> <span style="color: #ff0000;">COMPROMISED</span>
+                </div>
+            </div>
+
+            <div class="alert-box">
+                <div class="alert-title">INTRUSION LOG - RECENT ACCESS DETECTED</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>INTRUDER IP</th>
+                            <th>ACCESS TIME</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if visitors %}
+                        {% for visitor in visitors %}
+                        <tr>
+                            <td class="severity-high">{{ visitor[0] }}</td>
+                            <td class="severity-critical">{{ visitor[1] }}</td>
+                        </tr>
+                        {% endfor %}
+                        {% else %}
+                        <tr>
+                            <td colspan="2">Analyzing system logs...</td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+
+            <footer>
+                [SECURITY SYSTEM ALERT] - All unauthorized access attempts are being logged and monitored
+            </footer>
         </div>
-
-        <div class="info">
-            <h2>Statistics</h2>
-            <p><strong>Total Visits:</strong> {{ visitor_count }}</p>
-            <p><strong>Unique IPs:</strong> {{ unique_ips }}</p>
-        </div>
-
-        <h2>Recent Visitors (Last 100)</h2>
-        <table>
-            <tr>
-                <th>IP Address</th>
-                <th>Timestamp</th>
-            </tr>
-            {% for visitor in visitors %}
-            <tr>
-                <td>{{ visitor[0] }}</td>
-                <td>{{ visitor[1] }}</td>
-            </tr>
-            {% endfor %}
-        </table>
     </body>
     </html>
     '''
