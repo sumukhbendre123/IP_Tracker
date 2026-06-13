@@ -3,6 +3,10 @@ from pymongo import MongoClient
 from pymongo.errors import ServerSelectionTimeoutError
 from datetime import datetime
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file (for local testing)
+load_dotenv()
 
 app = Flask(__name__)
 
