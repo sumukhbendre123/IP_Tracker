@@ -1,0 +1,5 @@
+run = "python ip_tracker.py"
+language = "python3"
+
+[deployment]
+run = ["python", "ip_tracker.py"]
