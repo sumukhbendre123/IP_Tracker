@@ -1,50 +1,55 @@
 from flask import Flask, render_template_string, request
-import sqlite3
+from pymongo import MongoClient
+from pymongo.errors import ServerSelectionTimeoutError
 from datetime import datetime
 import os
 
 app = Flask(__name__)
 
-# Database setup - use /tmp for Vercel's ephemeral filesystem, fallback to local
-DB_FILE = os.environ.get('DB_PATH', '/tmp/visitor_ips.db')
+# MongoDB Atlas connection
+MONGO_URI = os.environ.get('MONGODB_URI', 'mongodb://localhost:27017')
+client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+
+try:
+    client.admin.command('ismaster')
+    db = client['ip_tracker']
+    visitors_collection = db['visitors']
+    # Create index for faster queries
+    visitors_collection.create_index([('timestamp', -1)])
+    print("✅ MongoDB connected successfully")
+except ServerSelectionTimeoutError:
+    print("⚠️ MongoDB connection failed - ensure MONGODB_URI is set")
 
 def init_database():
-    """Create database and table if they don't exist"""
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS visitors (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            ip_address TEXT NOT NULL,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
-    conn.commit()
-    conn.close()
+    """Initialize database (MongoDB doesn't require explicit initialization)"""
+    try:
+        visitors_collection.create_index([('timestamp', -1)])
+    except:
+        pass
 
 def store_ip(ip_address):
     """Store IP address in database"""
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    cursor.execute('INSERT INTO visitors (ip_address) VALUES (?)', (ip_address,))
-    conn.commit()
-    conn.close()
+    try:
+        visitors_collection.insert_one({
+            'ip_address': ip_address,
+            'timestamp': datetime.utcnow()
+        })
+    except Exception as e:
+        print(f"Error storing IP: {e}")
 
 def get_all_visitors():
     """Retrieve all stored IP addresses"""
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    cursor.execute('SELECT ip_address, timestamp FROM visitors ORDER BY timestamp DESC LIMIT 100')
-    visitors = cursor.fetchall()
-    conn.close()
-    return visitors
+    try:
+        visitors = list(visitors_collection.find({}, {'_id': 0}).sort('timestamp', -1).limit(100))
+        return [(v['ip_address'], v['timestamp'].strftime('%Y-%m-%d %H:%M:%S')) for v in visitors]
+    except Exception as e:
+        print(f"Error fetching visitors: {e}")
+        return []
 
 @app.route('/')
 def home():
     """Main page - captures IP and displays it"""
-    # Initialize database on first request
-    if not os.path.exists(DB_FILE):
-        init_database()
+    init_database()
 
     # Get client IP from request, handle proxies
     client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
@@ -59,11 +64,10 @@ def home():
     visitor_count = len(visitors)
 
     # Get unique IP count
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    cursor.execute('SELECT COUNT(DISTINCT ip_address) FROM visitors')
-    unique_ips = cursor.fetchone()[0]
-    conn.close()
+    try:
+        unique_ips = visitors_collection.distinct('ip_address').__len__()
+    except:
+        unique_ips = 0
 
     # HTML template
     html = '''
@@ -126,22 +130,27 @@ def stats():
     """API endpoint to get stats as JSON"""
     import json
 
-    if not os.path.exists(DB_FILE):
-        init_database()
+    try:
+        total_visits = visitors_collection.count_documents({})
+        unique_ips = len(visitors_collection.distinct('ip_address'))
 
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
+        # Get top IPs
+        pipeline = [
+            {'$group': {'_id': '$ip_address', 'count': {'$sum': 1}}},
+            {'$sort': {'count': -1}},
+            {'$limit': 10}
+        ]
+        top_ips = list(visitors_collection.aggregate(pipeline))
 
-    cursor.execute('SELECT COUNT(*) FROM visitors')
-    total_visits = cursor.fetchone()[0]
-
-    cursor.execute('SELECT COUNT(DISTINCT ip_address) FROM visitors')
-    unique_ips = cursor.fetchone()[0]
-
-    cursor.execute('SELECT ip_address, COUNT(*) as count FROM visitors GROUP BY ip_address ORDER BY count DESC LIMIT 10')
-    top_ips = cursor.fetchall()
-
-    conn.close()
+    except Exception as e:
+        print(f"Error fetching stats: {e}")
+        return json.dumps({
+            'error': 'Database connection failed',
+            'total_visits': 0,
+            'unique_ips': 0,
+            'your_ip': request.remote_addr,
+            'top_ips': []
+        }, indent=2)
 
     # Get client IP
     client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
@@ -152,7 +161,7 @@ def stats():
         'total_visits': total_visits,
         'unique_ips': unique_ips,
         'your_ip': client_ip,
-        'top_ips': [{'ip': ip, 'visits': count} for ip, count in top_ips]
+        'top_ips': [{'ip': ip['_id'], 'visits': ip['count']} for ip in top_ips]
     }, indent=2)
 
 if __name__ == '__main__':
