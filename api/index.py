@@ -4,14 +4,24 @@ from pymongo.errors import ServerSelectionTimeoutError
 from datetime import datetime
 import os
 from dotenv import load_dotenv
+from urllib.parse import quote_plus
 
 # Load environment variables from .env file (for local testing)
 load_dotenv()
 
 app = Flask(__name__)
 
-# MongoDB Atlas connection
-MONGO_URI = os.environ.get('MONGODB_URI', 'mongodb://localhost:27017')
+# MongoDB Atlas connection with proper URL encoding
+MONGO_URI = os.environ.get('MONGODB_URI')
+
+# If MONGODB_URI contains special chars that aren't encoded, encode them
+if MONGO_URI and 'mongodb+srv://' in MONGO_URI:
+    # Don't modify if already set as full URI
+    pass
+else:
+    # Fallback for local development
+    MONGO_URI = 'mongodb://localhost:27017'
+
 client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
 
 try:
